@@ -10,22 +10,25 @@ const auth = useAuthStore()
 
 const quickActions = [
   {
-    title: 'Create Session',
-    text: 'Open a new virtual laboratory session for your students.',
-    icon: 'mdi-plus-circle-outline',
-    accentClass: 'accent-blue'
+    title: 'Manage Classes',
+    text: 'Create and organize classes before inviting students and opening sessions.',
+    icon: 'mdi-google-classroom',
+    accentClass: 'accent-blue',
+    to: '/instructor/classes'
   },
   {
     title: 'Manage Coding Lab',
     text: 'Assign, monitor, and evaluate live coding activities.',
     icon: 'mdi-laptop',
-    accentClass: 'accent-green'
+    accentClass: 'accent-green',
+    to: '/instructor/classes'
   },
   {
     title: 'Launch Simulators',
     text: 'Prepare PC assembly and LAN cable exercises for the class.',
     icon: 'mdi-puzzle',
-    accentClass: 'accent-pink'
+    accentClass: 'accent-pink',
+    to: '/instructor/classes'
   }
 ]
 
@@ -72,19 +75,24 @@ const activities = [
           </h1>
 
           <p class="hero-subtitle">
-            Manage live virtual classes, assign coding activities, and facilitate interactive
+            Manage live virtual classes, coding activities, and facilitate interactive
             hardware and networking simulations from one instructor workspace.
           </p>
 
-          <div class="hero-actions">
-            <v-btn color="primary" size="large" class="hero-btn">
-              Create Session
-            </v-btn>
+    <div class="hero-actions">
+  <v-btn color="primary" size="large" class="hero-btn" @click="navigateTo('/instructor/classes')">
+    Manage Classes
+  </v-btn>
 
-            <v-btn variant="outlined" size="large" class="hero-btn-outline">
-              View Teaching Modules
-            </v-btn>
-          </div>
+  <v-btn
+    variant="outlined"
+    size="large"
+    class="hero-btn-outline"
+    @click="navigateTo('/instructor/classes')"
+  >
+    View Classes
+  </v-btn>
+</div>
         </v-col>
 
         <v-col cols="12" lg="4">
@@ -138,9 +146,9 @@ const activities = [
                 <div class="action-title">{{ item.title }}</div>
                 <div class="action-text">{{ item.text }}</div>
 
-                <v-btn variant="text" color="primary" class="px-0 mt-2">
-                  Open
-                </v-btn>
+           <v-btn variant="text" color="primary" class="px-0 mt-2" @click="navigateTo(item.to)">
+              Open
+            </v-btn>
               </v-card>
             </v-col>
           </v-row>
