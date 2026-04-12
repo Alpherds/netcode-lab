@@ -125,33 +125,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-//   async function signUp(fullName: string, email: string, password: string) {
-//     loading.value = true
-//     try {
-//       const { data, error } = await supabase.auth.signUp({
-//         email,
-//         password,
-//         options: {
-//           data: {
-//             full_name: fullName
-//           },
-//           emailRedirectTo: `${config.public.siteUrl}/login`
-//         }
-//       })
-
-//       if (error) throw new Error(error.message)
-
-//       if (data.session) {
-//         await syncFromSession(data.session)
-//       }
-
-//       return data
-//     } finally {
-//       loading.value = false
-//     }
-//   }
-
-async function signUp(
+  async function signUp(
   fullName: string,
   email: string,
   password: string,
@@ -182,6 +156,23 @@ async function signUp(
     loading.value = false
   }
 }
+
+async function resendSignupConfirmation(email: string) {
+  loading.value = true
+  try {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email
+    })
+
+    if (error) throw new Error(error.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+
+ 
 
   async function signOut() {
     loading.value = true
@@ -241,6 +232,7 @@ async function signUp(
     init,
     signIn,
     signUp,
+    resendSignupConfirmation,
     signOut,
     sendPasswordReset,
     updatePassword,

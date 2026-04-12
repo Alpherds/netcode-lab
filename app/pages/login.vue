@@ -52,8 +52,14 @@ const registerHeading = computed(() => {
 
 const registerDescription = computed(() => {
   return registerForm.accountType === 'INSTRUCTOR'
-    ? 'Instructor registration requires protected approval. Your selected account type will be recorded and activated through admin or server-side promotion.'
+    ? 'Instructor registration. Your selected account type will be recorded and activated through confirmation email.'
     : 'Student registration is open. You can create your account and access the student dashboard after authentication.'
+})
+
+const resendEmail = computed(() => {
+  return activeTab.value === 'register'
+    ? registerForm.email.trim()
+    : loginForm.email.trim()
 })
 
 async function handleLogin() {
@@ -118,6 +124,23 @@ async function handleRegister() {
     errorMessage.value = error.message || 'Registration failed.'
   }
 }
+
+async function handleResendConfirmation() {
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  if (!resendEmail.value) {
+    errorMessage.value = 'Enter the email address first.'
+    return
+  }
+
+  try {
+    await auth.resendSignupConfirmation(resendEmail.value)
+    successMessage.value = 'Confirmation email sent again. Check your inbox.'
+  } catch (error: any) {
+    errorMessage.value = error.message || 'Unable to resend confirmation email.'
+  }
+}
 </script>
 
 <template>
@@ -169,7 +192,7 @@ async function handleRegister() {
               <div class="feature-icon feature-pink-icon">
                 <v-icon size="26">mdi-video-wireless</v-icon>
               </div>
-              <div class="feature-title">Secure Live Sessions</div>
+              <div class="feature-title"> Live Sessions</div>
               <div class="feature-text">
                 Conduct controlled online classes with attendance and activity tracking.
               </div>
@@ -271,6 +294,17 @@ async function handleRegister() {
                   >
                     Sign In
                   </v-btn>
+
+                  <div class="d-flex justify-center mt-4">
+                    <button
+                      type="button"
+                      class="auth-secondary-link"
+                      :disabled="auth.loading || !loginForm.email.trim()"
+                      @click="handleResendConfirmation"
+                    >
+                      Didn’t receive a confirmation email? Resend
+                    </button>
+                  </div>
                 </form>
               </v-window-item>
 
@@ -338,7 +372,7 @@ async function handleRegister() {
                     label="Confirm Password"
                     variant="outlined"
                     autocomplete="new-password"
-                    class="auth-input mb-6"
+                    class="auth-input mb-4"
                     density="comfortable"
                     hide-details="auto"
                     :append-inner-icon="showConfirmPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
@@ -351,7 +385,7 @@ async function handleRegister() {
                     variant="tonal"
                     class="mb-4"
                   >
-                    Instructor selection is recorded, but final instructor access should still be approved through protected admin or server-side role assignment.
+                    You select a Instructor account.
                   </v-alert>
 
                   <v-btn
@@ -365,6 +399,17 @@ async function handleRegister() {
                   >
                     Create Account
                   </v-btn>
+
+                  <div class="d-flex justify-center mt-4">
+                    <button
+                      type="button"
+                      class="auth-secondary-link"
+                      :disabled="auth.loading || !registerForm.email.trim()"
+                      @click="handleResendConfirmation"
+                    >
+                      Resend confirmation email
+                    </button>
+                  </div>
                 </form>
               </v-window-item>
             </v-window>
@@ -607,6 +652,26 @@ async function handleRegister() {
   text-decoration: underline;
 }
 
+.auth-secondary-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: #45b8ff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-secondary-link:hover {
+  text-decoration: underline;
+}
+
+.auth-secondary-link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 .auth-btn {
   height: 54px;
   border-radius: 14px;
@@ -634,7 +699,6 @@ async function handleRegister() {
   color: rgba(255, 255, 255, 0.72);
 }
 
-/* DESKTOP */
 @media (min-width: 1280px) {
   .auth-brand-col {
     justify-content: flex-start;
@@ -649,7 +713,6 @@ async function handleRegister() {
   }
 }
 
-/* TABLET */
 @media (max-width: 1279px) {
   .brand-panel {
     max-width: 720px;
@@ -666,8 +729,6 @@ async function handleRegister() {
   }
 }
 
-/* MOBILE / STACK */
-/* MOBILE / STACK */
 @media (max-width: 959px) {
   .auth-page {
     padding-top: 1.5rem;
@@ -678,14 +739,12 @@ async function handleRegister() {
     max-width: 860px;
   }
 
-  /* BRAND FIRST */
   .auth-brand-col {
     order: 1;
     justify-content: center;
     margin-bottom: 1.5rem;
   }
 
-  /* LOGIN CARD SECOND / BOTTOM */
   .auth-form-col {
     order: 2;
     justify-content: center;
@@ -741,7 +800,6 @@ async function handleRegister() {
   }
 }
 
-/* SMALL MOBILE */
 @media (max-width: 768px) {
   .auth-page {
     padding-left: 0.75rem !important;
@@ -798,7 +856,6 @@ async function handleRegister() {
   }
 }
 
-/* NARROW MOBILE */
 @media (max-width: 480px) {
   .auth-form-col {
     margin-bottom: 1.5rem;

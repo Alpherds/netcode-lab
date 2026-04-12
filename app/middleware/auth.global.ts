@@ -1,7 +1,6 @@
-import { useAuthStore } from "~/stores/useAuthStore"
+import { useAuthStore } from '~/stores/useAuthStore'
 
 export default defineNuxtRouteMiddleware(async (to) => {
-    
   const auth = useAuthStore()
 
   if (!auth.initialized) {
@@ -15,10 +14,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`)
   }
 
-  if (
-    auth.isAuthenticated &&
-    (to.path === '/' || publicPaths.includes(to.path))
-  ) {
-    return navigateTo(auth.dashboardPath)
+  if (auth.isAuthenticated && to.path === '/') {
+    if (auth.role) {
+      return navigateTo(auth.dashboardPath)
+    }
+    return
+  }
+
+  if (auth.isAuthenticated && publicPaths.includes(to.path)) {
+    if (auth.role && auth.dashboardPath !== to.path) {
+      return navigateTo(auth.dashboardPath)
+    }
+    return
   }
 })
