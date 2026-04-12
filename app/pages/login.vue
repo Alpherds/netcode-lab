@@ -94,66 +94,81 @@ async function handleRegister() {
 </script>
 
 <template>
-  <v-container class="fill-height py-8">
-    <v-row class="fill-height" align="center" justify="center">
-      <v-col cols="12" md="6" lg="5" class="mb-6 mb-md-0">
-        <v-sheet
-          rounded="xl"
-          elevation="0"
-          class="pa-8 h-100 d-flex flex-column justify-center"
-          color="transparent"
-        >
-          <div class="d-flex align-center ga-4 mb-8">
-            <v-avatar size="70" rounded="xl" color="white">
-              <v-img src="/logo.png" alt="NetCode Logo" />
-            </v-avatar>
-
-            <div>
-              <div class="text-h3 font-weight-bold">NetCode</div>
-              <div class="text-subtitle-1 text-medium-emphasis">
-                Interactive Virtual Laboratory for IT Education
-              </div>
-            </div>
+  <v-container fluid class="auth-page px-3 px-sm-5 px-md-6 px-lg-8 py-5 py-md-8">
+    <v-row class="auth-wrapper ma-0" align="center" justify="center">
+      <!-- LEFT / BRAND -->
+      <v-col cols="12" lg="7" class="auth-brand-col">
+        <section class="brand-panel">
+          <div class="brand-logo-wrap">
+            <img src="/logo.png" alt="NetCode Logo" class="brand-logo" />
           </div>
 
-          <v-card rounded="xl" variant="flat" class="pa-6 mb-6">
-            <div class="text-h5 font-weight-bold mb-3">One platform for live IT learning</div>
-            <div class="text-body-1 text-medium-emphasis">
-              Conduct secure online classes, real-time coding activities, and interactive
-              virtual simulations inside one controlled digital classroom.
-            </div>
-          </v-card>
+          <div class="brand-chip">
+            Secure learning • Live coding • Interactive simulations
+          </div>
 
-          <v-row>
-            <v-col cols="12" sm="6">
-              <v-card rounded="xl" variant="tonal" color="primary" class="pa-4">
-                <div class="font-weight-bold mb-2">Live Coding Lab</div>
-                <div class="text-body-2">
-                  Run coding tasks, display outputs, and track student attempts.
-                </div>
-              </v-card>
-            </v-col>
+          <h1 class="brand-title">
+            A modern virtual laboratory for
+            <span>live IT education</span>
+          </h1>
 
-            <v-col cols="12" sm="6">
-              <v-card rounded="xl" variant="tonal" color="success" class="pa-4">
-                <div class="font-weight-bold mb-2">Interactive Simulators</div>
-                <div class="text-body-2">
-                  Practice PC assembly and LAN cable activities in a guided virtual lab.
-                </div>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-sheet>
+          <p class="brand-subtitle">
+            NetCode combines secure online classes, live coding activities,
+            and interactive simulation practice inside one controlled digital learning space.
+          </p>
+
+          <div class="feature-grid">
+            <article class="feature-card feature-blue">
+              <div class="feature-icon feature-blue-icon">
+                <v-icon size="26">mdi-laptop</v-icon>
+              </div>
+              <div class="feature-title">Live Coding Lab</div>
+              <div class="feature-text">
+                Write, run, and evaluate code outputs during active class sessions.
+              </div>
+            </article>
+
+            <article class="feature-card feature-green">
+              <div class="feature-icon feature-green-icon">
+                <v-icon size="26">mdi-puzzle</v-icon>
+              </div>
+              <div class="feature-title">Interactive Simulators</div>
+              <div class="feature-text">
+                Practice PC assembly and LAN cable activities with guided validation.
+              </div>
+            </article>
+
+            <article class="feature-card feature-pink">
+              <div class="feature-icon feature-pink-icon">
+                <v-icon size="26">mdi-video-wireless</v-icon>
+              </div>
+              <div class="feature-title">Secure Live Sessions</div>
+              <div class="feature-text">
+                Conduct controlled online classes with attendance and activity tracking.
+              </div>
+            </article>
+          </div>
+        </section>
       </v-col>
 
-      <v-col cols="12" md="6" lg="5">
-        <v-card rounded="xl" elevation="8" class="overflow-hidden">
-          <v-tabs v-model="activeTab" fixed-tabs color="primary" bg-color="white">
+      <!-- RIGHT / AUTH -->
+      <v-col cols="12" lg="5" class="auth-form-col">
+        <v-card class="auth-card" rounded="xl" elevation="0">
+          <div class="auth-card-glow auth-card-glow-1" />
+          <div class="auth-card-glow auth-card-glow-2" />
+
+          <v-tabs
+            v-model="activeTab"
+            fixed-tabs
+            color="primary"
+            bg-color="transparent"
+            class="auth-tabs"
+          >
             <v-tab value="login">Sign In</v-tab>
             <v-tab value="register">Create Account</v-tab>
           </v-tabs>
 
-          <div class="pa-6 pa-md-8">
+          <div class="auth-content pa-5 pa-sm-6 pa-md-8">
             <v-alert
               v-if="errorMessage"
               type="error"
@@ -175,8 +190,11 @@ async function handleRegister() {
             <v-window v-model="activeTab">
               <v-window-item value="login">
                 <form @submit.prevent="handleLogin">
-                  <div class="text-h5 font-weight-bold mb-2">Welcome back</div>
-                  <div class="text-body-2 text-medium-emphasis mb-6">
+                  <div class="text-h4 font-weight-bold mb-2 text-white auth-heading">
+                    Welcome back
+                  </div>
+
+                  <div class="text-body-1 text-grey-lighten-1 mb-6 auth-subheading">
                     Sign in to continue to your NetCode classroom dashboard.
                   </div>
 
@@ -186,7 +204,9 @@ async function handleRegister() {
                     type="email"
                     variant="outlined"
                     autocomplete="email"
-                    class="mb-3"
+                    class="auth-input mb-3"
+                    density="comfortable"
+                    hide-details="auto"
                   />
 
                   <v-text-field
@@ -195,15 +215,17 @@ async function handleRegister() {
                     type="password"
                     variant="outlined"
                     autocomplete="current-password"
-                    class="mb-2"
+                    class="auth-input mb-2"
+                    density="comfortable"
+                    hide-details="auto"
                   />
 
-                  <div class="d-flex justify-space-between align-center mb-6">
-                    <div class="text-caption text-medium-emphasis">
+                  <div class="d-flex flex-wrap justify-space-between align-center ga-3 mb-6 auth-meta">
+                    <div class="text-caption text-grey-lighten-1 auth-meta-text">
                       Use your registered NetCode account.
                     </div>
 
-                    <NuxtLink to="/forgot-password" class="text-decoration-none text-primary">
+                    <NuxtLink to="/forgot-password" class="auth-link">
                       Forgot password?
                     </NuxtLink>
                   </div>
@@ -212,7 +234,7 @@ async function handleRegister() {
                     block
                     size="large"
                     color="primary"
-                    variant="flat"
+                    class="auth-btn"
                     :loading="auth.loading"
                     :disabled="!loginValid"
                     type="submit"
@@ -224,10 +246,13 @@ async function handleRegister() {
 
               <v-window-item value="register">
                 <form @submit.prevent="handleRegister">
-                  <div class="text-h5 font-weight-bold mb-2">Create student account</div>
-                  <div class="text-body-2 text-medium-emphasis mb-6">
-                    Student registration is open. Instructor accounts should be assigned through
-                    protected admin/server setup.
+                  <div class="text-h4 font-weight-bold mb-2 text-white auth-heading">
+                    Create student account
+                  </div>
+
+                  <div class="text-body-1 text-grey-lighten-1 mb-6 auth-subheading">
+                    Student registration is open. Instructor accounts should be assigned
+                    through protected admin or server setup.
                   </div>
 
                   <v-text-field
@@ -235,7 +260,9 @@ async function handleRegister() {
                     label="Full Name"
                     variant="outlined"
                     autocomplete="name"
-                    class="mb-3"
+                    class="auth-input mb-3"
+                    density="comfortable"
+                    hide-details="auto"
                   />
 
                   <v-text-field
@@ -244,7 +271,9 @@ async function handleRegister() {
                     type="email"
                     variant="outlined"
                     autocomplete="email"
-                    class="mb-3"
+                    class="auth-input mb-3"
+                    density="comfortable"
+                    hide-details="auto"
                   />
 
                   <v-text-field
@@ -253,7 +282,9 @@ async function handleRegister() {
                     type="password"
                     variant="outlined"
                     autocomplete="new-password"
-                    class="mb-3"
+                    class="auth-input mb-3"
+                    density="comfortable"
+                    hide-details="auto"
                   />
 
                   <v-text-field
@@ -262,14 +293,16 @@ async function handleRegister() {
                     type="password"
                     variant="outlined"
                     autocomplete="new-password"
-                    class="mb-6"
+                    class="auth-input mb-6"
+                    density="comfortable"
+                    hide-details="auto"
                   />
 
                   <v-btn
                     block
                     size="large"
                     color="primary"
-                    variant="flat"
+                    class="auth-btn"
                     :loading="auth.loading"
                     :disabled="!registerValid"
                     type="submit"
@@ -285,3 +318,486 @@ async function handleRegister() {
     </v-row>
   </v-container>
 </template>
+
+<style scoped>
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+.auth-wrapper {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+/* BRAND SIDE */
+.auth-brand-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-panel {
+  width: 100%;
+  max-width: 760px;
+  padding: 1rem 1.5rem 1rem 0.5rem;
+}
+
+.brand-logo-wrap {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.brand-logo {
+  width: min(100%, 420px);
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.brand-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.65rem 1.1rem;
+  margin-bottom: 1.2rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #1e293b;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(16px);
+}
+
+.brand-title {
+  max-width: 720px;
+  margin: 0 0 1rem;
+  font-size: clamp(2.4rem, 5vw, 4.6rem);
+  line-height: 1.02;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+}
+
+.brand-title span {
+  background: linear-gradient(90deg, #ff3c5f 0%, #2fc8ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-subtitle {
+  max-width: 680px;
+  margin: 0 0 2rem;
+  font-size: 1.08rem;
+  line-height: 1.8;
+  color: #475569;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1rem;
+}
+
+.feature-card {
+  grid-column: span 4;
+  min-height: 190px;
+  padding: 1.2rem 1.1rem;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+}
+
+.feature-blue {
+  background: linear-gradient(180deg, rgba(226, 240, 255, 0.95), rgba(212, 230, 255, 0.88));
+}
+
+.feature-green {
+  background: linear-gradient(180deg, rgba(227, 248, 239, 0.95), rgba(213, 241, 227, 0.88));
+}
+
+.feature-pink {
+  background: linear-gradient(180deg, rgba(255, 232, 239, 0.95), rgba(252, 216, 228, 0.88));
+}
+
+.feature-icon {
+  width: 52px;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  margin-bottom: 0.95rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.feature-blue-icon {
+  background: linear-gradient(180deg, rgba(77, 166, 255, 0.16), rgba(59, 130, 246, 0.12));
+  color: #1d4ed8;
+}
+
+.feature-green-icon {
+  background: linear-gradient(180deg, rgba(52, 211, 153, 0.16), rgba(16, 185, 129, 0.12));
+  color: #059669;
+}
+
+.feature-pink-icon {
+  background: linear-gradient(180deg, rgba(251, 113, 133, 0.16), rgba(244, 63, 94, 0.12));
+  color: #e11d48;
+}
+
+.feature-title {
+  margin-bottom: 0.55rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.feature-text {
+  font-size: 0.97rem;
+  line-height: 1.75;
+  color: #475569;
+}
+
+/* AUTH SIDE */
+.auth-form-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  background:
+    linear-gradient(180deg, rgba(13, 17, 29, 0.9) 0%, rgba(16, 19, 31, 0.95) 100%);
+  box-shadow:
+    0 24px 80px rgba(15, 23, 42, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
+}
+
+.auth-card-glow {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(12px);
+}
+
+.auth-card-glow-1 {
+  width: 220px;
+  height: 220px;
+  left: -40px;
+  bottom: -70px;
+  background: radial-gradient(circle, rgba(47, 200, 255, 0.17), transparent 70%);
+}
+
+.auth-card-glow-2 {
+  width: 180px;
+  height: 180px;
+  right: -40px;
+  top: -50px;
+  background: radial-gradient(circle, rgba(255, 60, 95, 0.12), transparent 70%);
+}
+
+.auth-tabs {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.auth-content {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-heading {
+  line-height: 1.1;
+}
+
+.auth-subheading {
+  line-height: 1.7;
+}
+
+.auth-meta {
+  min-height: 28px;
+}
+
+.auth-meta-text {
+  line-height: 1.6;
+}
+
+.auth-link {
+  color: #45b8ff;
+  text-decoration: none;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+.auth-btn {
+  height: 54px;
+  border-radius: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  box-shadow: 0 12px 30px rgba(47, 200, 255, 0.24);
+}
+
+:deep(.auth-input .v-field) {
+  min-height: 56px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+:deep(.auth-input .v-field__outline) {
+  opacity: 0.9;
+}
+
+:deep(.auth-input input) {
+  color: white;
+}
+
+:deep(.auth-input .v-label) {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* DESKTOP */
+@media (min-width: 1280px) {
+  .auth-brand-col {
+    justify-content: flex-start;
+  }
+
+  .auth-form-col {
+    justify-content: center;
+  }
+
+  .brand-panel {
+    margin-right: auto;
+  }
+}
+
+/* TABLET */
+@media (max-width: 1279px) {
+  .brand-panel {
+    max-width: 720px;
+    padding: 0.5rem 1rem 0.5rem;
+  }
+
+  .brand-logo {
+    width: min(100%, 380px);
+  }
+
+  .feature-card {
+    grid-column: span 6;
+    min-height: 176px;
+  }
+}
+
+/* MOBILE / STACK */
+/* MOBILE / STACK */
+@media (max-width: 959px) {
+  .auth-page {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .auth-wrapper {
+    max-width: 860px;
+  }
+
+  /* BRAND FIRST */
+  .auth-brand-col {
+    order: 1;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+
+  /* LOGIN CARD SECOND / BOTTOM */
+  .auth-form-col {
+    order: 2;
+    justify-content: center;
+    margin-bottom: 0;
+  }
+
+  .auth-card {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  .brand-panel {
+    max-width: 760px;
+    padding: 0;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .brand-logo-wrap {
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 1.1rem;
+  }
+
+  .brand-logo {
+    width: min(100%, 420px);
+    margin: 0 auto;
+  }
+
+  .brand-chip {
+    width: 100%;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .brand-title,
+  .brand-subtitle {
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .feature-card {
+    grid-column: auto;
+    min-height: auto;
+    text-align: left;
+  }
+}
+
+/* SMALL MOBILE */
+@media (max-width: 768px) {
+  .auth-page {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  .auth-card {
+    max-width: 100%;
+    border-radius: 28px !important;
+  }
+
+  .auth-content {
+    padding: 1.35rem !important;
+  }
+
+  .auth-heading {
+    font-size: 1.8rem !important;
+  }
+
+  .auth-subheading {
+    font-size: 0.98rem !important;
+    margin-bottom: 1.35rem !important;
+  }
+
+  .brand-logo {
+    width: min(100%, 330px);
+  }
+
+  .brand-title {
+    font-size: 2.35rem;
+    line-height: 1.06;
+  }
+
+  .brand-subtitle {
+    font-size: 0.98rem;
+    line-height: 1.75;
+    margin-bottom: 1.5rem;
+  }
+
+  .brand-chip {
+    padding: 0.85rem 1rem;
+    border-radius: 22px;
+    font-size: 0.95rem;
+  }
+
+  .feature-card {
+    padding: 1.2rem 1rem;
+    border-radius: 24px;
+  }
+
+  .auth-meta {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+}
+
+/* NARROW MOBILE */
+@media (max-width: 480px) {
+  .auth-form-col {
+    margin-bottom: 1.5rem;
+  }
+
+  .auth-card {
+    max-width: 100%;
+  }
+
+  .auth-content {
+    padding: 1.1rem !important;
+  }
+
+  .auth-heading {
+    font-size: 1.45rem !important;
+  }
+
+  .auth-subheading {
+    font-size: 0.93rem !important;
+    line-height: 1.65;
+  }
+
+  .brand-logo {
+    width: min(100%, 285px);
+  }
+
+  .brand-title {
+    font-size: 1.85rem;
+    line-height: 1.08;
+  }
+
+  .brand-subtitle {
+    font-size: 0.92rem;
+    line-height: 1.7;
+  }
+
+  .brand-chip {
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .feature-title {
+    font-size: 1rem;
+  }
+
+  .feature-text {
+    font-size: 0.92rem;
+  }
+
+  .auth-btn {
+    height: 52px;
+  }
+
+  :deep(.auth-input .v-field) {
+    min-height: 54px;
+  }
+}
+</style>
