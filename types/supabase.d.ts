@@ -4,6 +4,11 @@ declare module '#app' {
   interface NuxtApp {
     $supabase: SupabaseClient
   }
+
+  interface PageMeta {
+    public?: boolean
+    roles?: Array<'INSTRUCTOR' | 'STUDENT'>
+  }
 }
 
 declare module 'vue' {
