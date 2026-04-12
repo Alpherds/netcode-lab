@@ -124,8 +124,7 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = false
     }
   }
-
-  async function signUp(
+async function signUp(
   fullName: string,
   email: string,
   password: string,
