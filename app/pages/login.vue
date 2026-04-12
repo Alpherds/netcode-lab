@@ -13,6 +13,10 @@ const activeTab = ref<'login' | 'register'>('login')
 const errorMessage = ref('')
 const successMessage = ref('')
 
+const showLoginPassword = ref(false)
+const showRegisterPassword = ref(false)
+const showConfirmPassword = ref(false)
+
 const loginForm = reactive({
   email: '',
   password: ''
@@ -22,7 +26,8 @@ const registerForm = reactive({
   fullName: '',
   email: '',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  accountType: 'STUDENT' as 'STUDENT' | 'INSTRUCTOR'
 })
 
 const loginValid = computed(() => {
@@ -34,8 +39,21 @@ const registerValid = computed(() => {
     registerForm.fullName.trim().length >= 2 &&
     registerForm.email.trim() !== '' &&
     registerForm.password.length >= 6 &&
-    registerForm.password === registerForm.confirmPassword
+    registerForm.password === registerForm.confirmPassword &&
+    !!registerForm.accountType
   )
+})
+
+const registerHeading = computed(() => {
+  return registerForm.accountType === 'INSTRUCTOR'
+    ? 'Create instructor account request'
+    : 'Create student account'
+})
+
+const registerDescription = computed(() => {
+  return registerForm.accountType === 'INSTRUCTOR'
+    ? 'Instructor registration requires protected approval. Your selected account type will be recorded and activated through admin or server-side promotion.'
+    : 'Student registration is open. You can create your account and access the student dashboard after authentication.'
 })
 
 async function handleLogin() {
@@ -72,17 +90,26 @@ async function handleRegister() {
     const result = await auth.signUp(
       registerForm.fullName,
       registerForm.email,
-      registerForm.password
+      registerForm.password,
+      registerForm.accountType
     )
 
     if (result.session) {
-      successMessage.value = 'Account created successfully.'
+      if (registerForm.accountType === 'INSTRUCTOR') {
+        successMessage.value =
+          'Instructor account request created. Access level still requires approval.'
+      } else {
+        successMessage.value = 'Student account created successfully.'
+      }
+
       await navigateTo(auth.dashboardPath)
       return
     }
 
     successMessage.value =
-      'Account created. Check your email first if email confirmation is enabled in Supabase.'
+      registerForm.accountType === 'INSTRUCTOR'
+        ? 'Instructor account request submitted. Check your email if confirmation is enabled. Final instructor access still requires approval.'
+        : 'Account created. Check your email first if email confirmation is enabled in Supabase.'
 
     activeTab.value = 'login'
     loginForm.email = registerForm.email
@@ -104,7 +131,7 @@ async function handleRegister() {
           </div>
 
           <div class="brand-chip">
-            Secure learning • Live coding • Interactive simulations
+            learning • Live coding • Interactive simulations
           </div>
 
           <h1 class="brand-title">
@@ -188,6 +215,7 @@ async function handleRegister() {
             </v-alert>
 
             <v-window v-model="activeTab">
+              <!-- LOGIN -->
               <v-window-item value="login">
                 <form @submit.prevent="handleLogin">
                   <div class="text-h4 font-weight-bold mb-2 text-white auth-heading">
@@ -211,13 +239,15 @@ async function handleRegister() {
 
                   <v-text-field
                     v-model="loginForm.password"
+                    :type="showLoginPassword ? 'text' : 'password'"
                     label="Password"
-                    type="password"
                     variant="outlined"
                     autocomplete="current-password"
                     class="auth-input mb-2"
                     density="comfortable"
                     hide-details="auto"
+                    :append-inner-icon="showLoginPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+                    @click:append-inner="showLoginPassword = !showLoginPassword"
                   />
 
                   <div class="d-flex flex-wrap justify-space-between align-center ga-3 mb-6 auth-meta">
@@ -244,16 +274,29 @@ async function handleRegister() {
                 </form>
               </v-window-item>
 
+              <!-- REGISTER -->
               <v-window-item value="register">
                 <form @submit.prevent="handleRegister">
                   <div class="text-h4 font-weight-bold mb-2 text-white auth-heading">
-                    Create student account
+                    {{ registerHeading }}
                   </div>
 
                   <div class="text-body-1 text-grey-lighten-1 mb-6 auth-subheading">
-                    Student registration is open. Instructor accounts should be assigned
-                    through protected admin or server setup.
+                    {{ registerDescription }}
                   </div>
+
+                  <v-select
+                    v-model="registerForm.accountType"
+                    label="Account Type"
+                    variant="outlined"
+                    class="auth-input mb-3"
+                    density="comfortable"
+                    hide-details="auto"
+                    :items="[
+                      { title: 'Student', value: 'STUDENT' },
+                      { title: 'Instructor', value: 'INSTRUCTOR' }
+                    ]"
+                  />
 
                   <v-text-field
                     v-model="registerForm.fullName"
@@ -278,25 +321,38 @@ async function handleRegister() {
 
                   <v-text-field
                     v-model="registerForm.password"
+                    :type="showRegisterPassword ? 'text' : 'password'"
                     label="Password"
-                    type="password"
                     variant="outlined"
                     autocomplete="new-password"
                     class="auth-input mb-3"
                     density="comfortable"
                     hide-details="auto"
+                    :append-inner-icon="showRegisterPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+                    @click:append-inner="showRegisterPassword = !showRegisterPassword"
                   />
 
                   <v-text-field
                     v-model="registerForm.confirmPassword"
+                    :type="showConfirmPassword ? 'text' : 'password'"
                     label="Confirm Password"
-                    type="password"
                     variant="outlined"
                     autocomplete="new-password"
                     class="auth-input mb-6"
                     density="comfortable"
                     hide-details="auto"
+                    :append-inner-icon="showConfirmPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+                    @click:append-inner="showConfirmPassword = !showConfirmPassword"
                   />
+
+                  <v-alert
+                    v-if="registerForm.accountType === 'INSTRUCTOR'"
+                    type="info"
+                    variant="tonal"
+                    class="mb-4"
+                  >
+                    Instructor selection is recorded, but final instructor access should still be approved through protected admin or server-side role assignment.
+                  </v-alert>
 
                   <v-btn
                     block
