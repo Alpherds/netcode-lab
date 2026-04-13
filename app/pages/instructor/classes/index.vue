@@ -35,8 +35,11 @@ const classes = ref<ClassRow[]>([])
 
 const dialog = ref(false)
 const archiveDialog = ref(false)
+const unarchiveDialog = ref(false)
+
 const editingClassId = ref<string | null>(null)
 const classToArchive = ref<ClassRow | null>(null)
+const classToUnarchive = ref<ClassRow | null>(null)
 
 const errorMessage = ref('')
 const successMessage = ref('')
@@ -100,6 +103,12 @@ function openArchiveDialog(item: ClassRow) {
   archiveDialog.value = true
 }
 
+function openUnarchiveDialog(item: ClassRow) {
+  clearMessages()
+  classToUnarchive.value = item
+  unarchiveDialog.value = true
+}
+
 function closeDialog() {
   dialog.value = false
   resetForm()
@@ -108,6 +117,11 @@ function closeDialog() {
 function closeArchiveDialog() {
   archiveDialog.value = false
   classToArchive.value = null
+}
+
+function closeUnarchiveDialog() {
+  unarchiveDialog.value = false
+  classToUnarchive.value = null
 }
 
 function formatDate(value: string) {
@@ -237,8 +251,30 @@ async function archiveClass() {
   }
 }
 
-function goToClass(item: ClassRow) {
-  navigateTo(`/instructor/classes/${item.id}`)
+async function unarchiveClass() {
+  if (!classToUnarchive.value) return
+
+  archiving.value = true
+  clearMessages()
+
+  try {
+    const token = await getAccessToken()
+
+    await $fetch(`/api/classes/${classToUnarchive.value.id}/unarchive`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    successMessage.value = 'Class restored successfully.'
+    closeUnarchiveDialog()
+    await fetchClasses()
+  } catch (error: any) {
+    errorMessage.value = error?.data?.statusMessage || error?.message || 'Unable to restore class.'
+  } finally {
+    archiving.value = false
+  }
 }
 
 watch(statusFilter, fetchClasses)
@@ -381,7 +417,11 @@ onMounted(fetchClasses)
             md="6"
             xl="4"
           >
-            <v-card class="class-card" rounded="xl" elevation="0">
+          <v-card
+                class="class-card"
+                rounded="xl"
+                elevation="0"
+              >
               <div class="class-card-top">
                 <v-chip
                   size="small"
@@ -408,24 +448,39 @@ onMounted(fetchClasses)
                 Created {{ formatDate(item.created_at) }}
               </div>
 
-              <div class="class-actions">
-                <v-btn variant="text" color="primary" class="px-0" @click="goToClass(item)">
+             <div class="class-actions">
+               <v-btn
+                  variant="text"
+                  color="primary"
+                  class="px-0"
+                  :to="`/instructor/classes/${item.id}`"
+                >
                   Open
                 </v-btn>
 
                 <v-btn variant="text" color="primary" class="px-0" @click="openEditDialog(item)">
-                  Edit
-                </v-btn>
+                    Edit
+                  </v-btn>
 
-                <v-btn
-                  v-if="item.status === 'ACTIVE'"
-                  variant="text"
-                  color="error"
-                  class="px-0"
-                  @click="openArchiveDialog(item)"
-                >
-                  Archive
-                </v-btn>
+                  <v-btn
+                    v-if="item.status === 'ACTIVE'"
+                    variant="text"
+                    color="error"
+                    class="px-0"
+                    @click="openArchiveDialog(item)"
+                  >
+                    Archive
+                  </v-btn>
+
+                  <v-btn
+                    v-else
+                    variant="text"
+                    color="success"
+                    class="px-0"
+                    @click="openUnarchiveDialog(item)"
+                  >
+                    Unarchive
+                  </v-btn>
               </div>
             </v-card>
           </v-col>
@@ -509,6 +564,34 @@ onMounted(fetchClasses)
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="unarchiveDialog" max-width="520">
+  <v-card rounded="xl">
+    <v-card-title class="dialog-title">
+      Restore Class
+    </v-card-title>
+
+    <v-card-text class="pt-2">
+      Are you sure you want to restore
+      <strong>{{ classToUnarchive?.class_name }}</strong>?
+      This class will become active again and can be used for invitations and sessions.
+    </v-card-text>
+
+    <v-card-actions class="dialog-actions">
+      <v-spacer />
+      <v-btn variant="text" @click="closeUnarchiveDialog">
+        Cancel
+      </v-btn>
+      <v-btn
+        color="success"
+        :loading="archiving"
+        @click="unarchiveClass"
+      >
+        Restore
+      </v-btn>
+    </v-card-actions>
+  </v-card>
+</v-dialog>
   </v-container>
 </template>
 
@@ -687,6 +770,16 @@ onMounted(fetchClasses)
   padding: 1.25rem;
 }
 
+.class-card-clickable {
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.class-card-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 52px rgba(15, 23, 42, 0.08);
+}
+
 .class-card-top {
   display: flex;
   align-items: center;
@@ -779,7 +872,7 @@ onMounted(fetchClasses)
 .dialog-title {
   font-size: 1.05rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #0f172a;
   padding-top: 1.15rem;
 }
 

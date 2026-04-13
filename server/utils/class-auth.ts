@@ -1,18 +1,27 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
 import { createError, getHeader, type H3Event } from 'h3'
 
-type AppRole = 'INSTRUCTOR' | 'STUDENT'
+export type AppRole = 'INSTRUCTOR' | 'STUDENT'
 
-interface AppProfile {
+export interface AppProfile {
   id: string
   full_name: string
+  email: string | null
   role: AppRole
 }
 
-interface InstructorContext {
+interface AuthContext {
   supabase: SupabaseClient
   authUser: User
   profile: AppProfile
+}
+
+interface InstructorContext extends AuthContext {
+  profile: AppProfile & { role: 'INSTRUCTOR' }
+}
+
+interface StudentContext extends AuthContext {
+  profile: AppProfile & { role: 'STUDENT' }
 }
 
 export function getSupabaseAdmin(): SupabaseClient {
@@ -35,7 +44,7 @@ export function getSupabaseAdmin(): SupabaseClient {
   return createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY)
 }
 
-export async function requireInstructor(event: H3Event): Promise<InstructorContext> {
+export async function requireAuthenticatedProfile(event: H3Event): Promise<AuthContext> {
   const supabase = getSupabaseAdmin()
 
   const authHeader = getHeader(event, 'authorization')
@@ -58,7 +67,7 @@ export async function requireInstructor(event: H3Event): Promise<InstructorConte
 
   const { data: profile, error: profileError } = await supabase
     .from('users')
-    .select('id, full_name, role')
+    .select('id, full_name, email, role')
     .eq('id', authData.user.id)
     .single()
 
@@ -69,18 +78,37 @@ export async function requireInstructor(event: H3Event): Promise<InstructorConte
     })
   }
 
-  if (profile.role !== 'INSTRUCTOR') {
+  return {
+    supabase,
+    authUser: authData.user,
+    profile
+  }
+}
+
+export async function requireInstructor(event: H3Event): Promise<InstructorContext> {
+  const ctx = await requireAuthenticatedProfile(event)
+
+  if (ctx.profile.role !== 'INSTRUCTOR') {
     throw createError({
       statusCode: 403,
       statusMessage: 'Instructor access required'
     })
   }
 
-  return {
-    supabase,
-    authUser: authData.user,
-    profile
+  return ctx as InstructorContext
+}
+
+export async function requireStudent(event: H3Event): Promise<StudentContext> {
+  const ctx = await requireAuthenticatedProfile(event)
+
+  if (ctx.profile.role !== 'STUDENT') {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Student access required'
+    })
   }
+
+  return ctx as StudentContext
 }
 
 export async function getOwnedClassOrThrow(
@@ -186,6 +214,34 @@ export function normalizeClassCode(value: unknown): string {
     throw createError({
       statusCode: 400,
       statusMessage: 'class_code must be at most 30 characters'
+    })
+  }
+
+  return normalized
+}
+
+export function normalizeEmail(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'email is required'
+    })
+  }
+
+  const normalized = value.trim().toLowerCase()
+
+  if (!normalized) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'email is required'
+    })
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(normalized)) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Invalid email address'
     })
   }
 
