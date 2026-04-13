@@ -1,3 +1,4 @@
+<!-- app/pages/student/sessions/[id].vue -->
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSupabase } from '~/composables/useSupabase'
@@ -211,7 +212,7 @@ async function leaveSession() {
       }
     })
 
-    await fetchParticipants()
+    await refreshRoomState()
     successMessage.value = 'You left the session.'
     await navigateTo('/student/sessions')
   } catch (error: any) {
@@ -231,7 +232,7 @@ function subscribeRealtime() {
   }
 
   realtimeChannel = supabase
-    .channel(`student-session-room-${sessionId.value}`)
+    .channel(`live-session-${sessionId.value}`)
     .on(
       'postgres_changes',
       {
@@ -240,7 +241,8 @@ function subscribeRealtime() {
         table: 'session_participants',
         filter: `session_id=eq.${sessionId.value}`
       },
-      async () => {
+      async (payload) => {
+        console.log('[Student] session_participants change', payload)
         await fetchParticipants()
       }
     )
@@ -252,11 +254,14 @@ function subscribeRealtime() {
         table: 'sessions',
         filter: `id=eq.${sessionId.value}`
       },
-      async () => {
+      async (payload) => {
+        console.log('[Student] sessions change', payload)
         await fetchSession()
       }
     )
-    .subscribe()
+    .subscribe((status) => {
+      console.log('[Student] realtime status:', status)
+    })
 }
 
 async function loadPage() {
@@ -283,9 +288,43 @@ function goBack() {
   navigateTo('/student/sessions')
 }
 
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+async function refreshRoomState() {
+  await Promise.all([
+    fetchSession(),
+    fetchParticipants()
+  ])
+}
+
+function startPolling() {
+  stopPolling()
+
+  refreshTimer = setInterval(async () => {
+    if (document.hidden) return
+    await refreshRoomState()
+  }, 1000)
+}
+
+function stopPolling() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+async function handleVisibilityChange() {
+  if (!document.hidden) {
+    await refreshRoomState()
+  }
+}
+
 onMounted(async () => {
   await loadPage()
   subscribeRealtime()
+  startPolling()
+
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onBeforeUnmount(() => {
@@ -293,6 +332,9 @@ onBeforeUnmount(() => {
     supabase.removeChannel(realtimeChannel)
     realtimeChannel = null
   }
+
+  stopPolling()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 

@@ -1,3 +1,4 @@
+<!-- //app/pages/instructor/classes/[id]/sessions/[sessionId].vue -->
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSupabase } from '~/composables/useSupabase'
@@ -182,7 +183,7 @@ async function startSession() {
     })
 
     successMessage.value = 'Session started successfully.'
-    await fetchSession()
+   await refreshRoomState()
   } catch (error: any) {
     errorMessage.value =
       error?.data?.statusMessage ||
@@ -210,7 +211,7 @@ async function endSession() {
     })
 
     successMessage.value = 'Session ended successfully.'
-    await fetchSession()
+    await refreshRoomState()
   } catch (error: any) {
     errorMessage.value =
       error?.data?.statusMessage ||
@@ -228,7 +229,7 @@ function subscribeRealtime() {
   }
 
   realtimeChannel = supabase
-    .channel(`session-room-${sessionId.value}`)
+    .channel(`live-session-${sessionId.value}`)
     .on(
       'postgres_changes',
       {
@@ -237,7 +238,8 @@ function subscribeRealtime() {
         table: 'session_participants',
         filter: `session_id=eq.${sessionId.value}`
       },
-      async () => {
+      async (payload) => {
+        console.log('[Instructor] session_participants change', payload)
         await fetchParticipants()
       }
     )
@@ -249,20 +251,56 @@ function subscribeRealtime() {
         table: 'sessions',
         filter: `id=eq.${sessionId.value}`
       },
-      async () => {
+      async (payload) => {
+        console.log('[Instructor] sessions change', payload)
         await fetchSession()
       }
     )
-    .subscribe()
+    .subscribe((status) => {
+      console.log('[Instructor] realtime status:', status)
+    })
 }
 
 function goBack() {
   navigateTo(`/instructor/classes/${classId.value}/sessions`)
 }
 
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+async function refreshRoomState() {
+  await Promise.all([
+    fetchSession(),
+    fetchParticipants()
+  ])
+}
+
+function startPolling() {
+  stopPolling()
+
+  refreshTimer = setInterval(async () => {
+    if (document.hidden) return
+    await refreshRoomState()
+  }, 1000)
+}
+
+function stopPolling() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
+async function handleVisibilityChange() {
+  if (!document.hidden) {
+    await refreshRoomState()
+  }
+}
+
 onMounted(async () => {
   await loadPage()
   subscribeRealtime()
+  startPolling()
+
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onBeforeUnmount(() => {
@@ -270,6 +308,9 @@ onBeforeUnmount(() => {
     supabase.removeChannel(realtimeChannel)
     realtimeChannel = null
   }
+
+  stopPolling()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
