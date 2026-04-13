@@ -1,141 +1,129 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
-declare global {
-  interface Window {
-    JitsiMeetExternalAPI?: any
-  }
-}
-
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   roomName: string
   displayName?: string
   email?: string
   subject?: string
-  muted?: boolean
   parentHeight?: string
-}>(), {
-  displayName: '',
-  email: '',
-  subject: '',
-  muted: false,
-  parentHeight: '620px'
-})
+  muted?: boolean
+}>()
 
 const containerRef = ref<HTMLElement | null>(null)
 let api: any = null
-let scriptPromise: Promise<void> | null = null
 
 function loadJitsiScript() {
-  if (window.JitsiMeetExternalAPI) return Promise.resolve()
-  if (scriptPromise) return scriptPromise
-
-  scriptPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[data-jitsi-external-api="true"]'
-    )
-
-    if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true })
-      existing.addEventListener('error', () => reject(new Error('Failed to load Jitsi script')), { once: true })
+  return new Promise<void>((resolve) => {
+    if ((window as any).JitsiMeetExternalAPI) {
+      resolve()
       return
     }
 
     const script = document.createElement('script')
     script.src = 'https://meet.jit.si/external_api.js'
     script.async = true
-    script.dataset.jitsiExternalApi = 'true'
     script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Failed to load Jitsi script'))
-    document.head.appendChild(script)
+    document.body.appendChild(script)
   })
-
-  return scriptPromise
 }
 
-async function mountMeeting() {
-  if (!props.roomName || !containerRef.value) return
+function initJitsi() {
+  if (!containerRef.value) return
 
-  await loadJitsiScript()
-
-  if (!window.JitsiMeetExternalAPI) {
-    throw new Error('Jitsi API unavailable')
-  }
-
+  // cleanup old instance
   if (api) {
     api.dispose()
     api = null
   }
 
-  api = new window.JitsiMeetExternalAPI('meet.jit.si', {
+  const domain = 'meet.jit.si'
+
+  api = new (window as any).JitsiMeetExternalAPI(domain, {
     roomName: props.roomName,
     parentNode: containerRef.value,
+
     width: '100%',
     height: '100%',
+
     userInfo: {
-      displayName: props.displayName,
-      email: props.email
+      displayName: props.displayName || 'Participant',
+      email: props.email || ''
     },
+
     configOverwrite: {
-      startWithAudioMuted: props.muted,
+      startWithAudioMuted: props.muted ?? false,
+      startWithVideoMuted: false,
       prejoinPageEnabled: false,
-      disableDeepLinking: true
+      disableModeratorIndicator: false,
+      enableEmailInStats: false
     },
+
     interfaceConfigOverwrite: {
+      SHOW_JITSI_WATERMARK: false,
+      SHOW_BRAND_WATERMARK: false,
+      SHOW_POWERED_BY: false,
+      SHOW_PROMOTIONAL_CLOSE_PAGE: false,
+      DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
       MOBILE_APP_PROMO: false
     }
   })
 
+  // Optional: set subject/title
   if (props.subject) {
-    try {
-      api.executeCommand('subject', props.subject)
-    } catch {}
+    api.executeCommand('subject', props.subject)
   }
+
+  // 🔥 EVENTS (you can extend later)
+  api.addListener('participantJoined', () => {
+    console.log('Participant joined')
+  })
+
+  api.addListener('participantLeft', () => {
+    console.log('Participant left')
+  })
+
+  api.addListener('videoConferenceJoined', () => {
+    console.log('You joined meeting')
+  })
+
+  api.addListener('readyToClose', () => {
+    console.log('Meeting closed')
+  })
 }
 
-function disposeMeeting() {
+onMounted(async () => {
+  await loadJitsiScript()
+  initJitsi()
+})
+
+onBeforeUnmount(() => {
   if (api) {
     api.dispose()
     api = null
   }
-}
-
-watch(
-  () => props.roomName,
-  async () => {
-    disposeMeeting()
-    await mountMeeting()
-  }
-)
-
-onMounted(async () => {
-  await mountMeeting()
 })
 
-onBeforeUnmount(() => {
-  disposeMeeting()
+// 🔁 re-init if room changes
+watch(() => props.roomName, () => {
+  initJitsi()
 })
 </script>
 
 <template>
-  <div class="jitsi-shell" :style="{ height: parentHeight }">
-    <div ref="containerRef" class="jitsi-container" />
-  </div>
+  <div
+    ref="containerRef"
+    class="jitsi-container"
+    :style="{ height: parentHeight || '700px' }"
+  />
 </template>
 
 <style scoped>
-.jitsi-shell {
-  width: 100%;
-  border-radius: 24px;
-  overflow: hidden;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: #ffffff;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.05);
-}
-
 .jitsi-container {
   width: 100%;
-  height: 100%;
-  min-height: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.15);
 }
 </style>

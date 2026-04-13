@@ -1,4 +1,3 @@
-<!-- //app/pages/instructor/classes/[id]/sessions/[sessionId].vue -->
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSupabase } from '~/composables/useSupabase'
@@ -54,7 +53,6 @@ const supabase = useSupabase()
 const auth = useAuthStore()
 const route = useRoute()
 
-
 const classId = computed(() => String(route.params.id || ''))
 const sessionId = computed(() => String(route.params.sessionId || ''))
 
@@ -67,6 +65,7 @@ const session = ref<SessionDetails | null>(null)
 const participants = ref<SessionParticipant[]>([])
 
 let realtimeChannel: any = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const activeParticipants = computed(() =>
   participants.value.filter((item) => !item.left_at)
@@ -157,12 +156,19 @@ async function fetchParticipants() {
   participants.value = response.participants || []
 }
 
+async function refreshRoomState() {
+  await Promise.all([
+    fetchSession(),
+    fetchParticipants()
+  ])
+}
+
 async function loadPage() {
   loading.value = true
   clearMessages()
 
   try {
-    await Promise.all([fetchSession(), fetchParticipants()])
+    await refreshRoomState()
   } catch (error: any) {
     errorMessage.value =
       error?.data?.statusMessage ||
@@ -190,7 +196,7 @@ async function startSession() {
     })
 
     successMessage.value = 'Session started successfully.'
-   await refreshRoomState()
+    await refreshRoomState()
   } catch (error: any) {
     errorMessage.value =
       error?.data?.statusMessage ||
@@ -245,8 +251,7 @@ function subscribeRealtime() {
         table: 'session_participants',
         filter: `session_id=eq.${sessionId.value}`
       },
-      async (payload) => {
-        console.log('[Instructor] session_participants change', payload)
+      async () => {
         await fetchParticipants()
       }
     )
@@ -258,27 +263,11 @@ function subscribeRealtime() {
         table: 'sessions',
         filter: `id=eq.${sessionId.value}`
       },
-      async (payload) => {
-        console.log('[Instructor] sessions change', payload)
+      async () => {
         await fetchSession()
       }
     )
-    .subscribe((status) => {
-      console.log('[Instructor] realtime status:', status)
-    })
-}
-
-function goBack() {
-  navigateTo(`/instructor/classes/${classId.value}/sessions`)
-}
-
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-
-async function refreshRoomState() {
-  await Promise.all([
-    fetchSession(),
-    fetchParticipants()
-  ])
+    .subscribe()
 }
 
 function startPolling() {
@@ -296,17 +285,21 @@ function stopPolling() {
     refreshTimer = null
   }
 }
+
 async function handleVisibilityChange() {
   if (!document.hidden) {
     await refreshRoomState()
   }
 }
 
+function goBack() {
+  navigateTo(`/instructor/classes/${classId.value}/sessions`)
+}
+
 onMounted(async () => {
   await loadPage()
   subscribeRealtime()
   startPolling()
-
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
@@ -414,56 +407,99 @@ onBeforeUnmount(() => {
       </section>
 
       <section class="section-space">
-        <v-card class="panel-card" rounded="xl" elevation="0">
-          <div class="panel-title">Participant Presence</div>
-          <div class="panel-subtitle mb-4">
-            Live participant updates from this session
-          </div>
-
-          <div v-if="!participants.length" class="empty-state small-empty">
-            <div class="empty-icon">
-              <v-icon size="30">mdi-account-group-outline</v-icon>
-            </div>
-            <div class="empty-title">No participants yet</div>
-            <div class="empty-text">
-              Students will appear here once they join the session.
-            </div>
-          </div>
-
-          <div v-else class="participant-list">
-            <div
-              v-for="item in participants"
-              :key="item.id"
-              class="participant-item"
+        <v-row>
+          <v-col cols="12" md="8">
+            <template
+              v-if="
+                session.status === 'ACTIVE' &&
+                session.meeting_provider === 'JITSI' &&
+                session.meeting_room_name
+              "
             >
-              <div class="participant-left">
-                <div class="participant-avatar">
-                  {{ userInitials(item.user?.full_name) }}
-                </div>
+              <JitsiMeetEmbed
+                :room-name="session.meeting_room_name"
+                :display-name="auth.fullName"
+                :subject="session.title"
+                :email="''"
+                :muted="false"
+                parent-height="720px"
+              />
 
-                <div>
-                  <div class="participant-name">
-                    {{ item.user?.full_name || 'User' }}
-                  </div>
-                  <div class="participant-meta">
-                    Joined {{ formatDateTime(item.joined_at) }}
-                  </div>
-                  <div class="participant-meta" v-if="item.left_at">
-                    Left {{ formatDateTime(item.left_at) }}
-                  </div>
+              <div class="mt-4 d-flex flex-wrap ga-3">
+                <v-btn
+                  v-if="session.meeting_url"
+                  color="primary"
+                  variant="outlined"
+                  :href="session.meeting_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open Meeting in New Tab
+                </v-btn>
+              </div>
+            </template>
+
+            <v-card v-else class="panel-card" rounded="xl" elevation="0">
+              <div class="panel-title">Live Session Workspace</div>
+              <div class="panel-subtitle">
+                Start the session to launch the embedded online classroom.
+              </div>
+            </v-card>
+          </v-col>
+
+          <v-col cols="12" md="4">
+            <v-card class="panel-card" rounded="xl" elevation="0">
+              <div class="panel-title">Participant Presence</div>
+              <div class="panel-subtitle mb-4">
+                Live participant updates from this session
+              </div>
+
+              <div v-if="!participants.length" class="empty-state small-empty">
+                <div class="empty-icon">
+                  <v-icon size="30">mdi-account-group-outline</v-icon>
+                </div>
+                <div class="empty-title">No participants yet</div>
+                <div class="empty-text">
+                  Students will appear here once they join the session.
                 </div>
               </div>
 
-              <v-chip
-                size="small"
-                :color="item.left_at ? 'grey' : 'success'"
-                variant="tonal"
-              >
-                {{ item.left_at ? 'LEFT' : 'ACTIVE' }}
-              </v-chip>
-            </div>
-          </div>
-        </v-card>
+              <div v-else class="participant-list">
+                <div
+                  v-for="item in participants"
+                  :key="item.id"
+                  class="participant-item"
+                >
+                  <div class="participant-left">
+                    <div class="participant-avatar">
+                      {{ userInitials(item.user?.full_name) }}
+                    </div>
+
+                    <div>
+                      <div class="participant-name">
+                        {{ item.user?.full_name || 'User' }}
+                      </div>
+                      <div class="participant-meta">
+                        Joined {{ formatDateTime(item.joined_at) }}
+                      </div>
+                      <div class="participant-meta" v-if="item.left_at">
+                        Left {{ formatDateTime(item.left_at) }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <v-chip
+                    size="small"
+                    :color="item.left_at ? 'grey' : 'success'"
+                    variant="tonal"
+                  >
+                    {{ item.left_at ? 'LEFT' : 'ACTIVE' }}
+                  </v-chip>
+                </div>
+              </div>
+            </v-card>
+          </v-col>
+        </v-row>
       </section>
     </template>
   </v-container>

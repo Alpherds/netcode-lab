@@ -1,8 +1,6 @@
-<!-- app/pages/student/sessions/[id].vue -->
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSupabase } from '~/composables/useSupabase'
-
 import JitsiMeetEmbed from '~/components/session/JitsiMeetEmbed.vue'
 import { useAuthStore } from '~/stores/useAuthStore'
 
@@ -26,6 +24,9 @@ interface SessionDetails {
   started_at: string | null
   ended_at: string | null
   updated_at: string
+  meeting_provider: string | null
+  meeting_room_name: string | null
+  meeting_url: string | null
   class: {
     id: string
     class_name: string
@@ -37,9 +38,6 @@ interface SessionDetails {
     full_name: string
     email: string | null
   } | null
-  meeting_provider?: string | null
-meeting_room_name?: string | null
-meeting_url?: string | null
 }
 
 interface SessionParticipant {
@@ -57,9 +55,8 @@ interface SessionParticipant {
 }
 
 const supabase = useSupabase()
-const route = useRoute()
-
 const auth = useAuthStore()
+const route = useRoute()
 
 const sessionId = computed(() => String(route.params.id || ''))
 
@@ -75,6 +72,7 @@ const participants = ref<SessionParticipant[]>([])
 const myUserId = ref<string | null>(null)
 
 let realtimeChannel: any = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const activeParticipants = computed(() =>
   participants.value.filter((item) => !item.left_at)
@@ -168,6 +166,13 @@ async function fetchParticipants() {
   participants.value = response.participants || []
 }
 
+async function refreshRoomState() {
+  await Promise.all([
+    fetchSession(),
+    fetchParticipants()
+  ])
+}
+
 async function joinSession() {
   if (!session.value) return
   if (session.value.status !== 'ACTIVE') return
@@ -186,7 +191,7 @@ async function joinSession() {
       }
     })
 
-    await fetchParticipants()
+    await refreshRoomState()
     successMessage.value = 'You joined the session.'
   } catch (error: any) {
     errorMessage.value =
@@ -249,8 +254,7 @@ function subscribeRealtime() {
         table: 'session_participants',
         filter: `session_id=eq.${sessionId.value}`
       },
-      async (payload) => {
-        console.log('[Student] session_participants change', payload)
+      async () => {
         await fetchParticipants()
       }
     )
@@ -262,14 +266,11 @@ function subscribeRealtime() {
         table: 'sessions',
         filter: `id=eq.${sessionId.value}`
       },
-      async (payload) => {
-        console.log('[Student] sessions change', payload)
+      async () => {
         await fetchSession()
       }
     )
-    .subscribe((status) => {
-      console.log('[Student] realtime status:', status)
-    })
+    .subscribe()
 }
 
 async function loadPage() {
@@ -290,19 +291,6 @@ async function loadPage() {
   } finally {
     loading.value = false
   }
-}
-
-function goBack() {
-  navigateTo('/student/sessions')
-}
-
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-
-async function refreshRoomState() {
-  await Promise.all([
-    fetchSession(),
-    fetchParticipants()
-  ])
 }
 
 function startPolling() {
@@ -327,11 +315,14 @@ async function handleVisibilityChange() {
   }
 }
 
+function goBack() {
+  navigateTo('/student/sessions')
+}
+
 onMounted(async () => {
   await loadPage()
   subscribeRealtime()
   startPolling()
-
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
@@ -425,10 +416,40 @@ onBeforeUnmount(() => {
       <section class="section-space">
         <v-row>
           <v-col cols="12" md="8">
-            <v-card class="module-card" rounded="xl" elevation="0">
+            <template
+              v-if="
+                session.status === 'ACTIVE' &&
+                session.meeting_provider === 'JITSI' &&
+                session.meeting_room_name
+              "
+            >
+              <JitsiMeetEmbed
+                :room-name="session.meeting_room_name"
+                :display-name="auth.fullName"
+                :subject="session.title"
+                :email="''"
+                :muted="false"
+                parent-height="720px"
+              />
+
+              <div class="mt-4 d-flex flex-wrap ga-3">
+                <v-btn
+                  v-if="session.meeting_url"
+                  color="primary"
+                  variant="outlined"
+                  :href="session.meeting_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open Meeting in New Tab
+                </v-btn>
+              </div>
+            </template>
+
+            <v-card v-else class="module-card" rounded="xl" elevation="0">
               <div class="module-title">Live Session Workspace</div>
               <div class="module-text">
-                This is the live room shell. Coding lab, simulations, and classroom tools connect here next.
+                This online session becomes available once the instructor starts it.
               </div>
             </v-card>
           </v-col>
