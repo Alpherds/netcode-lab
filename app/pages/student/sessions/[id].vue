@@ -165,6 +165,7 @@ async function joinSession() {
   if (amIInside.value) return
 
   joining.value = true
+  clearMessages()
 
   try {
     const token = await getAccessToken()
@@ -177,6 +178,12 @@ async function joinSession() {
     })
 
     await fetchParticipants()
+    successMessage.value = 'You joined the session.'
+  } catch (error: any) {
+    errorMessage.value =
+      error?.data?.statusMessage ||
+      error?.message ||
+      'Unable to join session.'
   } finally {
     joining.value = false
   }
@@ -204,8 +211,8 @@ async function leaveSession() {
       }
     })
 
-    successMessage.value = 'You left the session.'
     await fetchParticipants()
+    successMessage.value = 'You left the session.'
     await navigateTo('/student/sessions')
   } catch (error: any) {
     errorMessage.value =
@@ -240,7 +247,7 @@ function subscribeRealtime() {
     .on(
       'postgres_changes',
       {
-        event: 'UPDATE',
+        event: '*',
         schema: 'public',
         table: 'sessions',
         filter: `id=eq.${sessionId.value}`

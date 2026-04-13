@@ -244,7 +244,7 @@ function subscribeRealtime() {
     .on(
       'postgres_changes',
       {
-        event: 'UPDATE',
+        event: '*',
         schema: 'public',
         table: 'sessions',
         filter: `id=eq.${sessionId.value}`
