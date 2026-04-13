@@ -28,7 +28,10 @@ export default defineEventHandler(async (event) => {
       created_at,
       started_at,
       ended_at,
-      updated_at
+      updated_at,
+      meeting_provider,
+      meeting_room_name,
+      meeting_url
     `)
     .eq('class_id', classId)
     .eq('instructor_id', authUser.id)
