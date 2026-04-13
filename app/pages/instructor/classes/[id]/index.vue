@@ -287,7 +287,7 @@ function goToStudentsModule() {
 }
 
 function goToSessionsModule() {
-  successMessage.value = 'Session module is the next step to build for this class.'
+  navigateTo(`/instructor/classes/${classId.value}/sessions`)
 }
 
 onMounted(async () => {
