@@ -122,7 +122,7 @@ function goToDashboard() {
 }
 
 function goToClass(item: StudentClassRow) {
-  successMessage.value = `Class details page is the next step to build for ${item.class?.class_name || 'this class'}.`
+  navigateTo(`/student/classes/${item.class_id}`)
 }
 
 onMounted(fetchMyClasses)

@@ -1,0 +1,69 @@
+import { createError } from 'h3'
+import { requireStudent } from '#server/utils/class-auth'
+
+export default defineEventHandler(async (event) => {
+  const { supabase, profile } = await requireStudent(event)
+
+  const { data: enrollments, error: enrollmentError } = await supabase
+    .from('class_enrollments')
+    .select('class_id')
+    .eq('student_id', profile.id)
+    .eq('status', 'ACTIVE')
+
+  if (enrollmentError) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: enrollmentError.message
+    })
+  }
+
+  const classIds = (enrollments || []).map((item) => item.class_id)
+
+  if (!classIds.length) {
+    return {
+      success: true,
+      sessions: []
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .select(`
+      id,
+      class_id,
+      instructor_id,
+      title,
+      description,
+      session_code,
+      scheduled_at,
+      status,
+      created_at,
+      started_at,
+      ended_at,
+      updated_at,
+      class:classes!sessions_class_id_fkey (
+        id,
+        class_name,
+        class_code
+      ),
+      instructor:users!sessions_instructor_id_fkey (
+        id,
+        full_name,
+        email
+      )
+    `)
+    .in('class_id', classIds)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: error.message
+    })
+  }
+
+  return {
+    success: true,
+    sessions: data ?? []
+  }
+})
