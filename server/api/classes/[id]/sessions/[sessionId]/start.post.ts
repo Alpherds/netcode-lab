@@ -1,4 +1,4 @@
-import { createError, getRouterParam } from 'h3'
+ import { createError, getRouterParam } from 'h3'
 import { getOwnedClassOrThrow, requireInstructor } from '#server/utils/class-auth'
 
 export default defineEventHandler(async (event) => {
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
 
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
-    .select('*')
+    .select('id, class_id, instructor_id, status, meeting_room_name')
     .eq('id', sessionId)
     .eq('class_id', classId)
     .eq('instructor_id', authUser.id)
@@ -38,20 +38,21 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  if (session.status === 'ACTIVE') {
-    return {
-      success: true,
-      session
-    }
-  }
+  const roomName =
+    session.meeting_room_name ||
+    `netcode-${classId.replace(/[^a-zA-Z0-9]/g, '')}-${sessionId.replace(/[^a-zA-Z0-9]/g, '')}`
 
+  const meetingUrl = `https://meet.jit.si/${roomName}`
   const now = new Date().toISOString()
 
-  const { data, error } = await supabase
+  const { data: updated, error: updateError } = await supabase
     .from('sessions')
     .update({
       status: 'ACTIVE',
-      started_at: session.started_at || now
+      started_at: now,
+      meeting_provider: 'JITSI',
+      meeting_room_name: roomName,
+      meeting_url: meetingUrl
     })
     .eq('id', sessionId)
     .select(`
@@ -61,24 +62,27 @@ export default defineEventHandler(async (event) => {
       title,
       description,
       session_code,
-      scheduled_at,
       status,
-      created_at,
+      scheduled_at,
       started_at,
       ended_at,
+      meeting_provider,
+      meeting_room_name,
+      meeting_url,
+      created_at,
       updated_at
     `)
     .single()
 
-  if (error) {
+  if (updateError || !updated) {
     throw createError({
       statusCode: 500,
-      statusMessage: error.message
+      statusMessage: updateError?.message || 'Unable to start session'
     })
   }
 
   return {
     success: true,
-    session: data
+    session: updated
   }
 })

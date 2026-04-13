@@ -1,30 +1,18 @@
-import { createError } from 'h3'
-import { requireStudent } from '#server/utils/class-auth'
+import { createError, getRouterParam } from 'h3'
+import { getOwnedClassOrThrow, requireInstructor } from '#server/utils/class-auth'
 
 export default defineEventHandler(async (event) => {
-  const { supabase, profile } = await requireStudent(event)
+  const { supabase, authUser } = await requireInstructor(event)
+  const classId = getRouterParam(event, 'id')
 
-  const { data: enrollments, error: enrollmentError } = await supabase
-    .from('class_enrollments')
-    .select('class_id')
-    .eq('student_id', profile.id)
-    .eq('status', 'ACTIVE')
-
-  if (enrollmentError) {
+  if (!classId) {
     throw createError({
-      statusCode: 500,
-      statusMessage: enrollmentError.message
+      statusCode: 400,
+      statusMessage: 'Missing class id'
     })
   }
 
-  const classIds = (enrollments || []).map((item) => item.class_id)
-
-  if (!classIds.length) {
-    return {
-      success: true,
-      sessions: []
-    }
-  }
+  await getOwnedClassOrThrow(supabase, classId, authUser.id)
 
   const { data, error } = await supabase
     .from('sessions')
@@ -41,18 +29,12 @@ export default defineEventHandler(async (event) => {
       started_at,
       ended_at,
       updated_at,
-      class:classes!sessions_class_id_fkey (
-        id,
-        class_name,
-        class_code
-      ),
-      instructor:users!sessions_instructor_id_fkey (
-        id,
-        full_name,
-        email
-      )
+      meeting_provider,
+      meeting_room_name,
+      meeting_url
     `)
-    .in('class_id', classIds)
+    .eq('class_id', classId)
+    .eq('instructor_id', authUser.id)
     .order('created_at', { ascending: false })
 
   if (error) {

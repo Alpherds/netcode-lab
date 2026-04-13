@@ -2,6 +2,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSupabase } from '~/composables/useSupabase'
+import { useAuthStore } from '~/stores/useAuthStore'
+import JitsiMeetEmbed from '~/components/session/JitsiMeetEmbed.vue'
 
 definePageMeta({
   middleware: 'role',
@@ -23,6 +25,9 @@ interface SessionDetails {
   started_at: string | null
   ended_at: string | null
   updated_at: string
+  meeting_provider: string | null
+  meeting_room_name: string | null
+  meeting_url: string | null
   class: {
     id: string
     class_name: string
@@ -46,7 +51,9 @@ interface SessionParticipant {
 }
 
 const supabase = useSupabase()
+const auth = useAuthStore()
 const route = useRoute()
+
 
 const classId = computed(() => String(route.params.id || ''))
 const sessionId = computed(() => String(route.params.sessionId || ''))

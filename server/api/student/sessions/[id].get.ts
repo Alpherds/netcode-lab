@@ -27,6 +27,9 @@ export default defineEventHandler(async (event) => {
       started_at,
       ended_at,
       updated_at,
+      meeting_provider,
+      meeting_room_name,
+      meeting_url,
       class:classes!sessions_class_id_fkey (
         id,
         class_name,

@@ -3,6 +3,9 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSupabase } from '~/composables/useSupabase'
 
+import JitsiMeetEmbed from '~/components/session/JitsiMeetEmbed.vue'
+import { useAuthStore } from '~/stores/useAuthStore'
+
 definePageMeta({
   middleware: 'role',
   roles: ['STUDENT']
@@ -34,6 +37,9 @@ interface SessionDetails {
     full_name: string
     email: string | null
   } | null
+  meeting_provider?: string | null
+meeting_room_name?: string | null
+meeting_url?: string | null
 }
 
 interface SessionParticipant {
@@ -52,6 +58,8 @@ interface SessionParticipant {
 
 const supabase = useSupabase()
 const route = useRoute()
+
+const auth = useAuthStore()
 
 const sessionId = computed(() => String(route.params.id || ''))
 
