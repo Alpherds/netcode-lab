@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSupabase } from '~/composables/useSupabase'
 
 definePageMeta({
@@ -33,12 +33,41 @@ interface SessionDetails {
   } | null
 }
 
+interface SessionParticipant {
+  id: string
+  session_id: string
+  user_id: string
+  joined_at: string | null
+  left_at: string | null
+  user: {
+    id: string
+    full_name: string
+    email: string | null
+    role: 'STUDENT' | 'INSTRUCTOR'
+  } | null
+}
+
 const supabase = useSupabase()
 const route = useRoute()
 
 const loading = ref(false)
+const leaving = ref(false)
 const errorMessage = ref('')
+const successMessage = ref('')
+
 const session = ref<SessionDetails | null>(null)
+const participants = ref<SessionParticipant[]>([])
+const myUserId = ref<string | null>(null)
+
+let realtimeChannel: any = null
+
+const activeParticipants = computed(() =>
+  participants.value.filter((item) => !item.left_at)
+)
+
+const amIInside = computed(() =>
+  activeParticipants.value.some((item) => item.user_id === myUserId.value)
+)
 
 async function getAccessToken() {
   const { data, error } = await supabase.auth.getSession()
@@ -66,23 +95,124 @@ function formatDateTime(value?: string | null) {
   }
 }
 
+function userInitials(name?: string | null) {
+  return String(name || 'User')
+    .trim()
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
+async function fetchMe() {
+  const { data } = await supabase.auth.getUser()
+  myUserId.value = data.user?.id || null
+}
+
 async function fetchSession() {
-  loading.value = true
+  const token = await getAccessToken()
+
+  const response = await $fetch<{
+    success: boolean
+    session: SessionDetails
+  }>(`/api/student/sessions/${route.params.id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  })
+
+  session.value = response.session
+}
+
+async function fetchParticipants() {
+  if (!session.value) return
+
+  const token = await getAccessToken()
+
+  const response = await $fetch<{
+    success: boolean
+    participants: SessionParticipant[]
+  }>(`/api/classes/${session.value.class_id}/sessions/${session.value.id}/participants`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  })
+
+  participants.value = response.participants || []
+}
+
+async function leaveSession() {
+  leaving.value = true
   errorMessage.value = ''
+  successMessage.value = ''
 
   try {
     const token = await getAccessToken()
 
-    const response = await $fetch<{
-      success: boolean
-      session: SessionDetails
-    }>(`/api/student/sessions/${route.params.id}`, {
+    await $fetch(`/api/student/sessions/${route.params.id}/leave`, {
+      method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`
       }
     })
 
-    session.value = response.session
+    successMessage.value = 'You left the session.'
+    await fetchParticipants()
+    await navigateTo('/student/sessions')
+  } catch (error: any) {
+    errorMessage.value =
+      error?.data?.statusMessage ||
+      error?.message ||
+      'Unable to leave session.'
+  } finally {
+    leaving.value = false
+  }
+}
+
+function subscribeRealtime() {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+    realtimeChannel = null
+  }
+
+  realtimeChannel = supabase
+    .channel(`student-session-room-${route.params.id}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'session_participants',
+        filter: `session_id=eq.${route.params.id}`
+      },
+      async () => {
+        await fetchParticipants()
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'sessions',
+        filter: `id=eq.${route.params.id}`
+      },
+      async () => {
+        await fetchSession()
+      }
+    )
+    .subscribe()
+}
+
+async function loadPage() {
+  loading.value = true
+  errorMessage.value = ''
+
+  try {
+    await fetchMe()
+    await fetchSession()
+    await fetchParticipants()
   } catch (error: any) {
     errorMessage.value =
       error?.data?.statusMessage ||
@@ -97,7 +227,17 @@ function goBack() {
   navigateTo('/student/sessions')
 }
 
-onMounted(fetchSession)
+onMounted(async () => {
+  await loadPage()
+  subscribeRealtime()
+})
+
+onBeforeUnmount(() => {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+    realtimeChannel = null
+  }
+})
 </script>
 
 <template>
@@ -109,6 +249,15 @@ onMounted(fetchSession)
       class="mb-4"
     >
       {{ errorMessage }}
+    </v-alert>
+
+    <v-alert
+      v-if="successMessage"
+      type="success"
+      variant="tonal"
+      class="mb-4"
+    >
+      {{ successMessage }}
     </v-alert>
 
     <section v-if="loading" class="loading-wrap">
@@ -127,7 +276,7 @@ onMounted(fetchSession)
         </h1>
 
         <p class="hero-subtitle">
-          This is the student session room shell where coding, simulation, and live class tools will be attached next.
+          Participate in the live class session and monitor realtime class presence.
         </p>
 
         <div class="hero-meta">
@@ -135,41 +284,67 @@ onMounted(fetchSession)
           <div><strong>Instructor:</strong> {{ session.instructor?.full_name || 'Instructor' }}</div>
           <div><strong>Session Code:</strong> {{ session.session_code }}</div>
           <div><strong>Status:</strong> {{ session.status }}</div>
-          <div><strong>Scheduled:</strong> {{ formatDateTime(session.scheduled_at) }}</div>
+          <div><strong>Participants Inside:</strong> {{ activeParticipants.length }}</div>
         </div>
 
         <div class="hero-actions">
-          <v-btn color="primary" size="large" class="hero-btn" @click="goBack">
+          <v-btn variant="outlined" size="large" class="hero-btn-outline" @click="goBack">
             Back to Sessions
+          </v-btn>
+
+          <v-btn
+            v-if="amIInside"
+            color="error"
+            size="large"
+            class="hero-btn"
+            :loading="leaving"
+            @click="leaveSession"
+          >
+            Leave Session
           </v-btn>
         </div>
       </section>
 
       <section class="section-space">
         <v-row>
-          <v-col cols="12" md="4">
+          <v-col cols="12" md="8">
             <v-card class="module-card" rounded="xl" elevation="0">
-              <div class="module-title">Live Class Area</div>
+              <div class="module-title">Live Session Workspace</div>
               <div class="module-text">
-                Reserved for class video, attendance, announcements, and live interaction.
+                This is the live room shell. Coding lab, simulations, and classroom tools connect here next.
               </div>
             </v-card>
           </v-col>
 
           <v-col cols="12" md="4">
             <v-card class="module-card" rounded="xl" elevation="0">
-              <div class="module-title">Coding Lab</div>
-              <div class="module-text">
-                Reserved for live code editor, task execution, and result feedback.
-              </div>
-            </v-card>
-          </v-col>
+              <div class="module-title">Realtime Presence</div>
 
-          <v-col cols="12" md="4">
-            <v-card class="module-card" rounded="xl" elevation="0">
-              <div class="module-title">Simulation Area</div>
-              <div class="module-text">
-                Reserved for PC assembly and networking simulator activities.
+              <div v-if="!participants.length" class="empty-small">
+                No participants yet.
+              </div>
+
+              <div v-else class="presence-list">
+                <div
+                  v-for="item in participants"
+                  :key="item.id"
+                  class="presence-item"
+                >
+                  <div class="presence-left">
+                    <div class="presence-avatar">
+                      {{ userInitials(item.user?.full_name) }}
+                    </div>
+
+                    <div>
+                      <div class="presence-name">
+                        {{ item.user?.full_name || 'User' }}
+                      </div>
+                      <div class="presence-meta">
+                        {{ item.left_at ? 'Left' : 'Inside' }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </v-card>
           </v-col>
@@ -243,12 +418,18 @@ onMounted(fetchSession)
   flex-wrap: wrap;
 }
 
-.hero-btn {
+.hero-btn,
+.hero-btn-outline {
   height: 50px;
   padding-inline: 1.35rem;
   border-radius: 14px;
   font-weight: 800;
   text-transform: none;
+}
+
+.hero-btn-outline {
+  color: white;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .module-card,
@@ -267,10 +448,50 @@ onMounted(fetchSession)
   margin-bottom: 0.35rem;
 }
 
-.module-text {
+.module-text,
+.loading-text,
+.presence-meta,
+.empty-small {
   font-size: 0.94rem;
   line-height: 1.7;
   color: #64748b;
+}
+
+.presence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.presence-item {
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 16px;
+  padding: 0.8rem;
+  background: #fbfdff;
+}
+
+.presence-left {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.presence-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(226, 240, 255, 0.95), rgba(212, 230, 255, 0.88));
+  color: #1d4ed8;
+  font-weight: 900;
+}
+
+.presence-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
 }
 
 .loading-wrap {
@@ -281,14 +502,18 @@ onMounted(fetchSession)
   justify-content: center;
 }
 
-.loading-text {
-  margin-top: 0.9rem;
-  color: #64748b;
-}
-
 @media (max-width: 768px) {
   .hero-meta {
     grid-template-columns: 1fr;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+  }
+
+  .hero-btn,
+  .hero-btn-outline {
+    width: 100%;
   }
 }
 </style>

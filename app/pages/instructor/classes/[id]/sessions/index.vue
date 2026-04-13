@@ -109,6 +109,10 @@ function statusColor(status: SessionStatus) {
   return 'grey'
 }
 
+function openSessionRoom(item: SessionRow) {
+  navigateTo(`/instructor/classes/${classId.value}/sessions/${item.id}`)
+}
+
 async function fetchClassDetails() {
   const token = await getAccessToken()
 
@@ -387,6 +391,16 @@ onMounted(loadPage)
                 Scheduled: {{ formatDateTime(item.scheduled_at) }}
               </div>
 
+                <v-btn
+                variant="text"
+                color="primary"
+                class="px-0"
+                @click="openSessionRoom(item)"
+                >
+                Open Room
+                </v-btn>
+
+
               <div class="session-meta">
                 Started: {{ formatDateTime(item.started_at) }}
               </div>
@@ -395,6 +409,7 @@ onMounted(loadPage)
                 Ended: {{ formatDateTime(item.ended_at) }}
               </div>
 
+      
               <div class="session-actions">
                 <v-btn
                   v-if="item.status === 'CREATED'"
