@@ -175,7 +175,7 @@ async function removeStudent() {
       }
     })
 
-    successMessage.value = 'Student removed from class successfully.'
+    successMessage.value = 'Student removed successfully. Related class enrollment and invitation records were also removed.'
     closeRemoveDialog()
     await Promise.all([fetchClassDetails(), fetchStudents()])
   } catch (error: any) {

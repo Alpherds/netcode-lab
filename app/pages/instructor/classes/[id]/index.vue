@@ -366,14 +366,6 @@ onMounted(async () => {
             </div>
 
             <div class="hero-actions">
-              <v-btn color="primary" size="large" class="hero-btn" @click="openInviteDialog">
-                Invite Student
-              </v-btn>
-
-              <v-btn variant="outlined" size="large" class="hero-btn-outline" @click="goToStudentsModule">
-                View Students
-              </v-btn>
-
               <v-btn variant="outlined" size="large" class="hero-btn-outline" @click="goToSessionsModule">
                 Create Session
               </v-btn>
@@ -450,7 +442,7 @@ onMounted(async () => {
                 @click="goToStudentsModule"
               >
                 <v-icon start size="18">mdi-account-group-outline</v-icon>
-                Manage Enrolled Students
+                View Students
               </v-btn>
             </v-card>
           </v-col>
