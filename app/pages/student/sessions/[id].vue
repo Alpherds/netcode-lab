@@ -7,6 +7,8 @@ definePageMeta({
   roles: ['STUDENT']
 })
 
+type SessionStatus = 'CREATED' | 'ACTIVE' | 'LOCKED' | 'ENDED'
+
 interface SessionDetails {
   id: string
   class_id: string
@@ -15,7 +17,7 @@ interface SessionDetails {
   description: string | null
   session_code: string
   scheduled_at: string | null
-  status: 'CREATED' | 'ACTIVE' | 'LOCKED' | 'ENDED'
+  status: SessionStatus
   created_at: string
   started_at: string | null
   ended_at: string | null
@@ -50,8 +52,12 @@ interface SessionParticipant {
 const supabase = useSupabase()
 const route = useRoute()
 
+const sessionId = computed(() => String(route.params.id || ''))
+
 const loading = ref(false)
+const joining = ref(false)
 const leaving = ref(false)
+
 const errorMessage = ref('')
 const successMessage = ref('')
 
@@ -77,6 +83,11 @@ async function getAccessToken() {
   }
 
   return data.session.access_token
+}
+
+function clearMessages() {
+  errorMessage.value = ''
+  successMessage.value = ''
 }
 
 function formatDateTime(value?: string | null) {
@@ -105,6 +116,14 @@ function userInitials(name?: string | null) {
     .toUpperCase()
 }
 
+function statusColor(status: SessionStatus) {
+  if (status === 'ACTIVE') return 'success'
+  if (status === 'CREATED') return 'primary'
+  if (status === 'LOCKED') return 'warning'
+  if (status === 'ENDED') return 'grey'
+  return 'grey'
+}
+
 async function fetchMe() {
   const { data } = await supabase.auth.getUser()
   myUserId.value = data.user?.id || null
@@ -116,7 +135,7 @@ async function fetchSession() {
   const response = await $fetch<{
     success: boolean
     session: SessionDetails
-  }>(`/api/student/sessions/${route.params.id}`, {
+  }>(`/api/student/sessions/${sessionId.value}`, {
     headers: {
       Authorization: `Bearer ${token}`
     }
@@ -126,14 +145,12 @@ async function fetchSession() {
 }
 
 async function fetchParticipants() {
-  if (!session.value) return
-
   const token = await getAccessToken()
 
   const response = await $fetch<{
     success: boolean
     participants: SessionParticipant[]
-  }>(`/api/classes/${session.value.class_id}/sessions/${session.value.id}/participants`, {
+  }>(`/api/student/sessions/${sessionId.value}/participants`, {
     headers: {
       Authorization: `Bearer ${token}`
     }
@@ -142,16 +159,46 @@ async function fetchParticipants() {
   participants.value = response.participants || []
 }
 
-async function leaveSession() {
-  leaving.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
+async function joinSession() {
+  if (!session.value) return
+  if (session.value.status !== 'ACTIVE') return
+  if (amIInside.value) return
+
+  joining.value = true
 
   try {
     const token = await getAccessToken()
 
-    await $fetch(`/api/student/sessions/${route.params.id}/leave`, {
-      method: 'POST',
+    await $fetch(`/api/student/sessions/${sessionId.value}/join`, {
+      method: 'POST' as any,
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    await fetchParticipants()
+  } finally {
+    joining.value = false
+  }
+}
+
+async function ensureJoined() {
+  if (!session.value) return
+  if (session.value.status !== 'ACTIVE') return
+  if (amIInside.value) return
+
+  await joinSession()
+}
+
+async function leaveSession() {
+  leaving.value = true
+  clearMessages()
+
+  try {
+    const token = await getAccessToken()
+
+    await $fetch(`/api/student/sessions/${sessionId.value}/leave`, {
+      method: 'POST' as any,
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -177,14 +224,14 @@ function subscribeRealtime() {
   }
 
   realtimeChannel = supabase
-    .channel(`student-session-room-${route.params.id}`)
+    .channel(`student-session-room-${sessionId.value}`)
     .on(
       'postgres_changes',
       {
         event: '*',
         schema: 'public',
         table: 'session_participants',
-        filter: `session_id=eq.${route.params.id}`
+        filter: `session_id=eq.${sessionId.value}`
       },
       async () => {
         await fetchParticipants()
@@ -196,7 +243,7 @@ function subscribeRealtime() {
         event: 'UPDATE',
         schema: 'public',
         table: 'sessions',
-        filter: `id=eq.${route.params.id}`
+        filter: `id=eq.${sessionId.value}`
       },
       async () => {
         await fetchSession()
@@ -207,11 +254,13 @@ function subscribeRealtime() {
 
 async function loadPage() {
   loading.value = true
-  errorMessage.value = ''
+  clearMessages()
 
   try {
     await fetchMe()
     await fetchSession()
+    await fetchParticipants()
+    await ensureJoined()
     await fetchParticipants()
   } catch (error: any) {
     errorMessage.value =
@@ -290,6 +339,17 @@ onBeforeUnmount(() => {
         <div class="hero-actions">
           <v-btn variant="outlined" size="large" class="hero-btn-outline" @click="goBack">
             Back to Sessions
+          </v-btn>
+
+          <v-btn
+            v-if="session.status === 'ACTIVE' && !amIInside"
+            color="primary"
+            size="large"
+            class="hero-btn"
+            :loading="joining"
+            @click="joinSession"
+          >
+            Join Session
           </v-btn>
 
           <v-btn

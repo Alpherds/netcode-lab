@@ -57,7 +57,10 @@ const errorMessage = ref('')
 const successMessage = ref('')
 
 const classItem = ref<StudentClassDetails | null>(null)
-const sessions = ref<ClassSessionRow[]>([])
+const sessions = ref<any[]>([])
+const sessionsLoading = ref(false)
+
+
 
 async function getAccessToken() {
   const { data, error } = await supabase.auth.getSession()
@@ -123,18 +126,23 @@ async function fetchClassDetails() {
 }
 
 async function fetchSessions() {
-  const token = await getAccessToken()
+  sessionsLoading.value = true
 
-  const response = await $fetch<{
-    success: boolean
-    sessions: ClassSessionRow[]
-  }>(`/api/student/classes/${classId.value}/sessions`, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
+  try {
+    const token = await getAccessToken()
 
-  sessions.value = response.sessions || []
+    const res = await $fetch(`/api/student/classes/${classId.value}/sessions`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    sessions.value = res.sessions || []
+  } catch (err) {
+    console.error(err)
+  } finally {
+    sessionsLoading.value = false
+  }
 }
 
 async function loadPage() {
@@ -188,7 +196,12 @@ function goBack() {
   navigateTo('/student/classes')
 }
 
-onMounted(loadPage)
+onMounted(async () => {
+  await Promise.all([
+    fetchClassDetails(),
+    fetchSessions()
+  ])
+})
 </script>
 
 <template>
@@ -315,7 +328,35 @@ onMounted(loadPage)
                 <div class="empty-icon">
                   <v-icon size="30">mdi-video-wireless-outline</v-icon>
                 </div>
-                <div class="empty-title">No sessions yet</div>
+             
+                  <div v-if="sessionsLoading">Loading sessions...</div>
+
+<div v-else-if="!sessions.length">
+  No sessions yet
+</div>
+
+<v-row v-else>
+  <v-col
+    v-for="session in sessions"
+    :key="session.id"
+    cols="12"
+    md="6"
+  >
+    <v-card>
+      <div>{{ session.title }}</div>
+      <div>{{ session.description }}</div>
+
+      <v-btn
+        color="primary"
+        @click="navigateTo(`/student/sessions/${session.id}`)"
+      >
+        Join Session
+      </v-btn>
+    </v-card>
+  </v-col>
+</v-row>
+
+
                 <div class="empty-text">
                   Your instructor has not created a session for this class yet.
                 </div>

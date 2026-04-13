@@ -12,53 +12,38 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { data: enrollment, error: enrollmentError } = await supabase
+  // ✅ Ensure student is enrolled
+  const { data: enrollment } = await supabase
     .from('class_enrollments')
-    .select('id, joined_at, created_at')
+    .select('id')
     .eq('class_id', classId)
     .eq('student_id', profile.id)
     .eq('status', 'ACTIVE')
     .single()
 
-  if (enrollmentError || !enrollment) {
+  if (!enrollment) {
     throw createError({
       statusCode: 403,
-      statusMessage: 'You are not enrolled in this class'
+      statusMessage: 'Not enrolled in this class'
     })
   }
 
-  const { data: klass, error: classError } = await supabase
-    .from('classes')
-    .select(`
-      id,
-      instructor_id,
-      class_name,
-      class_code,
-      description,
-      status,
-      created_at,
-      updated_at,
-      instructor:users!classes_instructor_id_fkey (
-        id,
-        full_name,
-        email
-      )
-    `)
-    .eq('id', classId)
-    .single()
+  // ✅ Fetch sessions
+  const { data: sessions, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('class_id', classId)
+    .order('created_at', { ascending: false })
 
-  if (classError || !klass) {
+  if (error) {
     throw createError({
-      statusCode: 404,
-      statusMessage: 'Class not found'
+      statusCode: 500,
+      statusMessage: error.message
     })
   }
 
   return {
     success: true,
-    class: {
-      ...klass,
-      joined_at: enrollment.joined_at || enrollment.created_at
-    }
+    sessions: sessions || []
   }
 })
